@@ -162,14 +162,14 @@ function pickPay(k){PAY.method=k;PAY.tx=null;render()}
 async function loadPay(){if(S.receipt||!$('#paysum'))return;const r=await api('/api/pricing',S.model),tax=Math.round(r.total*.11);PAY.total=r.total+tax;
  $('#paysum').innerHTML=`Tagihan ${rup(r.total)} + PPN 11% ${rup(tax)} = <b>${rup(r.total+tax)}</b> per bulan`;const b=$('#btnPay');if(b&&PAY.method=='card')b.textContent='Bayar '+rup(PAY.total)}
 async function startPay(){const m=PAY.method;if(m=='card'){const c=cardVals();if(!c.number||!c.holder||!c.exp||!c.cvv)return payErr('Lengkapi semua data kartu.')}
- payErr('');const t=await api('/api/pay/init',{model:S.model,method:m,bank:PAY.bank,customer:S.name});if(t.error)return payErr(t.error);
- PAY.tx=t;if(m=='card')return confirmPay();$('#payform').innerHTML=payForm()}
+ payErr('');let t;try{t=await api('/api/pay/init',{model:S.model,method:m,bank:PAY.bank,customer:S.name})}catch(e){return payErr('Gagal menghubungi server. Coba lagi.')}
+ if(t.error)return payErr(t.error);PAY.tx=t;if(m=='card')return confirmPay();$('#payform').innerHTML=payForm()}
 async function confirmPay(){if(PAY.busy)return;PAY.busy=true;
  const msg={va:'Menunggu konfirmasi bank…',qris:'Memverifikasi pembayaran QRIS…',card:'Memproses kartu (3-D Secure)…'}[PAY.method];
  ovl(`<div class=proc role=status><div class=spin></div><b>${msg}</b></div>`);
- const body={id:PAY.tx.id};if(PAY.method=='card')body.card=cardVals();
- const[r]=await Promise.all([api('/api/pay/confirm',body),new Promise(f=>setTimeout(f,1600))]);PAY.busy=false;
- if(r.error){$('#ov')?.remove();return payErr(r.error)}
+ const body={token:PAY.tx.token};if(PAY.method=='card')body.card=cardVals();
+ let r;try{[r]=await Promise.all([api('/api/pay/confirm',body),new Promise(f=>setTimeout(f,1600))])}catch(e){r={error:'Gagal menghubungi server. Coba lagi.'}}
+ PAY.busy=false;if(r.error){$('#ov')?.remove();return payErr(r.error)}
  S.receipt=r.receipt;S.key=r.key;S.max=Math.max(S.max,6);save();showReceipt()}
 function showReceipt(){const r=S.receipt,L=(a,b)=>`<div class=rl><span>${a}</span><span>${esc(b)}</span></div>`,d=r.detail;
  const det=r.method=='va'?L('Bank',d.bank)+L('No. VA',grp(d.va)):r.method=='qris'?L('Merchant',d.merchant)+L('NMID',d.nmid)+L('RRN',d.rrn):L('Kartu',`${d.brand} •••• ${d.last4}`)+L('Pemegang',d.holder)+L('Kode otorisasi',d.auth);
