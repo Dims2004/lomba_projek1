@@ -42,6 +42,8 @@ def safe(fn):
 
 @app.get("/")
 def index(): return send_from_directory("static", "index.html")
+    for _p in ("/masuk", "/daftar", "/perusahaan", "/app"):
+    app.add_url_rule(_p, endpoint="page" + _p.replace("/", "_"), view_func=index)
 
 @app.post("/api/validate")
 @safe
